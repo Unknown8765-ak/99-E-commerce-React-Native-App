@@ -1,18 +1,84 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { Stack, useRouter, useSegments } from "expo-router";
+import { useEffect } from "react";
+import * as SplashScreen from "expo-splash-screen";
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { AuthProvider, useAuth } from "@/context/auth-context";
+import { CartProvider } from "@/context/cart-context";
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+function AuthGuard() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+    SplashScreen.hideAsync();
+
+    const currentGroup = segments[0];
+
+    const isAuthScreen = currentGroup === "auth";
+    const isTabsScreen = currentGroup === "(tabs)";
+
+    if (!isAuthenticated && isTabsScreen) {
+      router.replace("/auth/login");
+      return;
+    }
+
+    if (isAuthenticated && isAuthScreen) {
+      router.replace("/(tabs)");
+    }
+  }, [isAuthenticated, isLoading, segments, router]);
+
+  if (isLoading) {
+    return null;
+  }
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <Stack>
+      <Stack.Screen
+        name="(tabs)"
+        options={{
+          headerShown: false,
+        }}
+      />
+
+      <Stack.Screen
+        name="product/[id]"
+        options={{
+          title: "Product Details",
+          headerBackTitle: "Back",
+        }}
+      />
+
+      <Stack.Screen
+        name="auth/login"
+        options={{
+          title: "Login",
+          headerShown: false,
+        }}
+      />
+
+      <Stack.Screen
+        name="auth/register"
+        options={{
+          title: "Register",
+          headerShown: false,
+        }}
+      />
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <CartProvider>
+        <AuthGuard />
+      </CartProvider>
+    </AuthProvider>
   );
 }
